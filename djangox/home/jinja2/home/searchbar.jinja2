@@ -1,0 +1,46 @@
+<div class="container mt-3">
+  <div class="row">
+    <div class="col-12 text-center">
+      <form action="{{ url('search') }}" method="GET">
+        <div class="row">
+          <div class="input-group input-group col-5 first">
+            <!-- Book input -->
+            <input type="text" name="q" value="{{ q }}" class="form-control" placeholder="&#128269; Enter your search keyword"
+              maxlength="255" id="id_title" autofocus="">
+          </div>
+          <div class="input-group col-2 second">
+            <select name="reduce_type" class="form-control" style="max-width: 100%; display: inline-block;">
+              <option value="and" selected>All Words</option>
+              <option value="or">Any Word</option>
+            </select>
+          </div>
+
+          <div class="input-group col-3 third">
+            <select name="exact_match" id="type" class="form-control mr-sm-2">
+              <option value="on" selected>Exact Match (ON)</option>
+              <option value="off">Exact Match (OFF)</option>
+            </select>
+            <input type="hidden">
+          </div>
+
+          {# <div class="input-group col-3 third">
+            <select name="parameter" id="type" class="form-control mr-sm-2">
+              <option value="title" id="title">Title</option>
+              <option value="content" id="content" selected>Content</option>
+              <option value="author" id="author">Author</option>
+              <option value="isbn" id="isbn">ISBN</option>
+              <option value="all" id="author">Search All</option>
+            </select>
+            <input type="hidden">
+          </div> #}
+
+          <div class="input-group-append col-2 fourth text-left">
+            <!-- Submit button -->
+            <button class="btn btn-outline-info" type="submit">Search</button>
+            <!-- <input type="submit" value="Submit" class="btn btn-success"> -->
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
