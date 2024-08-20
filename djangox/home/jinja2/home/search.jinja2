@@ -1,0 +1,534 @@
+{% extends 'base.jinja2' %}
+
+
+{% block head %}
+  <link rel="stylesheet" href="{{ static('css/search.css') }}">
+  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0-beta.3/css/bootstrap.min.css" integrity="sha384-Zug+QiDoJOrZ5t4lssLdxGhVrurbmBWopoEl+M6BdEfwnCJZtKxi1KgxUyJq13dy" crossorigin="anonymous">
+  
+  <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.6/umd/popper.min.js"></script>
+<script>
+$(document).ready(function () {
+  $('.bookModal').click(function () {
+    var w = window.open('{{ url('books') }}', '_blank');
+    var link_id = $(this).attr('id');
+    var record_id = link_id.replace("results_","");
+    var q = "{{ q }}";
+    var lan = "{{ language }}";
+    console.log(q);
+    var container = $("#card1").load("{{ url('books') }}");
+    console.log(container)
+    var image = '<img id="image_url_1" class="card-img-top" src="{{ value }}" alt="Card Image" style="height:100%; padding:0.5em;">'
+    $('#loading-image').show();
+    $.ajax({
+      type: "GET",
+      url: '{{ url('books') }}',
+      datatype:'html',
+      data: {'record_id': record_id, "q":q,"csrfmiddlewaretoken": "{{ csrf_token }}","language":lan},
+      error: {"message": "error"},
+      success: function(response, status, jqXHR) {
+        var diction = response["diction"];
+        for (var k in diction) {
+          var img_url = diction[k];
+          var i;
+          for (i = 0; i < img_url.length; ++i) {
+            var image = document.createElement("img");
+            image.src = img_url[i];
+            image.loading = "lazy";
+            console.log(image.src);
+            $(w.document.body).html(container.append(image));
+          }
+        }                  
+      },
+      complete: function() {
+        $('#loading-image').hide();
+      },
+      dataType: "json",
+    });
+  });
+
+  $('.queryModal').click(function () {
+    console.log("clicked");
+    var link_id = $(this).attr('id');
+    var record_id = link_id.replace("results_","");
+    var q = "{{ q }}";
+    console.log(q, record_id);
+    var container = $('div ' + '#card_' + record_id)[0];
+    var image = '<img id="image_url" class="card-img-top" src="{{ value }}" alt="Card Image" style="height:100%; padding:0.5em;">'
+    $.ajax({
+      type: "POST",
+      url: '{{ url('line_segment') }}',
+      dataType: "json",
+      data: {
+        "csrfmiddlewaretoken": "{{ csrf_token }}",
+        "record_id": record_id,
+        "q": q,
+        "reduce_type": "{{ reduce_type }}",
+        "exact_match": "{{ exact_match }}"
+      },
+      error: {"message": "error"},
+      success: function(response, status, jqXHR) {
+        console.log(response);
+        var diction = response["diction"];
+        container.innerHTML = " ";
+        for (var k in diction) {
+          console.log(diction);
+          var img_url = diction[k]["image_url"];
+          var link = document.createElement("a");
+          link.href = diction[k]["text_url"];
+          link.target = "_blank";
+          link.download = diction[k]["text_filename"];
+          link.innerHTML = "Download Text";
+          var image =  document.createElement("img");
+          image.src=img_url;
+          container.append(link);
+          container.append(image);
+        }                  
+      },
+    });
+  });
+});
+</script>
+
+ 
+{% endblock %}
+
+
+
+{% block content %}
+
+<main role="main" class="container main-container">
+  {% include 'home/searchbar.jinja2' %}
+
+  <p class="text-center font-weight-light" style="font-size:0.8rem; margin-top:0.5rem;margin-bottom:0rem;"> {{ total|default("0", true) }} pages ( {{ time_diff }} seconds )</p>
+
+  <hr>
+
+  {% if q %}
+  <p class="text-center font-weight-light" style="font-size:0.8rem;"> You searched for <b><span style="font-size:1rem; color:blue;">{{ q }}</span></b> </p>
+  {% else %}
+  <p class="text-center font-weight-light" style="font-size:0.8rem;"><b><span style="font-size:1rem;"><a href="#id_title">Pease enter a keyword to search in the searchbar.</a></span></b> </p>
+  {% endif %}
+
+
+ <!-- Searched Results -->
+  <div class="row">
+    <div class="col-md-9">
+      <div class="container mt-3">
+
+        <!-- If results exists -->
+        {% if results %}
+
+          {% for res in results %}
+            
+            <div class="container">
+              <div class="panel-group">
+                <div class="panel panel-default">
+                  <div class="panel-body">
+                    <div class="row details">
+
+                      <!-- Thumbnail -->
+                      <div class="col-2">
+                        {% if res.thumbnail %}
+                        <img class="image-res" id="img" src="{{ res.thumbnail.url }}"  alt="BookFrontImage" title="{{ res.title }}" style="height:90%; width:100%"/>
+                        {% else %}
+                        <img class="image-res" id="img" src="/search/media/Images/No-image-available.jpg"  alt="BookFrontImage" title="{{ res.title }}" style="height:90%; width:100%"/>
+                        {% endif %}
+                      </div>
+
+
+                      <div class="col-10">
+                        <!-- the title of the book -->
+                        <p class="title"> {{ res.title }}</p>
+                          <!-- Description of Books -->
+                          <div class="row">
+                            <div class="col-7">
+                              <ul style="list-style-type: none;" class="description text-left">
+                                <li><strong>Source</strong> : {{ res.source }}</li>
+                                <form action="{{ url('books') }}" method="post" target="_blank">
+                                  <li><strong>Read</strong> : 
+                                    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"> 
+                                    <input type="hidden" name="fname" value="{{ res.id }}"> 
+                                    <input type="submit" style="background-color: transparent; text-decoration: underline; border: none;color: blue; cursor: pointer;" value="View">
+                                  </li>
+			                          </form>
+                                
+ 
+                                <li class="aboutdes post_body">
+                                  {% if res.description %}
+                                    <p class="abstract"><strong>Description</strong> : {{ res.description|safe|truncate(40) }}
+                                  {% else %}
+                                    <p class="abstract"><strong>Description</strong> : {{ "Unavailable Content. Read complete book for more information."|truncate(25) }}
+                                  {% endif %}
+                                    <a href="#{{ res }}" data-toggle="modal" data-target="#description{{ res.id }}">read more</a>
+                                    </p>
+
+                                    <!-- Modal for every book. this is the abstract modal -->
+                                    <div class="modal fade" id="description{{ res.id }}" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+                                      <div class="modal-dialog modal-dialog-centered" role="document">
+                                        <div class="modal-content">
+                                          <div class="modal-header w3-green">
+                                            <h5 class="modal-title" id="myModalLabel"> {{ res.title }} - <i style="font-size:1rem;">{{ res.author }} </i></h5>
+                                            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                              <span aria-hidden="true">&times;</span>
+                                            </button>
+                                          </div>
+                                          <div class="modal-body">
+						                                <p class="download" style="font-size:0.8rem;">
+                                                {% if res.description %}
+                                                  {{ res.description }}
+                                                {% else %}
+                                                  {{ "Unavailable Content. Read complete book for more information." }}
+                                                {% endif %}
+                                                <br> 
+                                                <p class="download" style="font-size:1rem;">
+                                                  <form action="{{ url('books') }}" method="post" target="_blank">
+                                                    <strong >Read Complete Book here : </strong>
+                                                    <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}"> 
+                                                    <input type="hidden" name="fname" value="{{ res.id }}"> 
+                                                    <input type="submit" style="background-color: transparent; text-decoration: underline; border: none;color: blue; cursor: pointer;" value="View">
+                                                  </form>
+                                                </p>
+                                              </p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                    </div>
+                                    <!-- abstract modal ends -->
+                                </li>
+
+                              </ul>
+                            </div>
+                            <!-- See Results About -->
+                            <div class="col-5 aboutdes post_body">
+                              <p style="font-size:0.8rem;">
+                                <strong>See results about</strong>
+
+                                <br>
+                                  <a href="#{{ res }}" class="queryModal"  id="results_{{ res.id }}" data-toggle="modal" data-target="#query{{ res.id }}" name="q">{{ q }} </a>
+                                <br><br>
+                                <strong>Number of Pages -
+                                  <a href="#{{ res }}" class="queryModal"  id="results_{{ res.id }}" data-toggle="modal" data-target="#query{{ res.id }}" name="q">{{ page_list.filter(book=res).count() }} </a>
+                                  </strong>
+
+                              </p>
+                            </div>
+                            <!-- Modal for the See Results About section -->
+                            <div class="modal fade" id="query{{ res.id }}" tabindex="-1" role="dialog" aria-labelledby="myModalLabel"
+                              aria-hidden="true">
+                              <div class="modal-dialog modal-lg modal-dialog-centered" role="document" style="max-width: 40% !important;">
+                                <div class="modal-content">
+                                  <div class="modal-header w3-green">
+                                    <h5 class="modal-title" id="myModalLabel"> {{ res.title }} - <i style="font-size:1rem;">{{ res.author }} </i>
+                                    </h5>
+                                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                                      <span aria-hidden="true">&times;</span>
+                                    </button>
+                                  </div>
+                                  <div class="modal-body">
+                                    <!-- Card for every query obtained -->
+                                    <div class="card-group">
+                                      <div class="col-12 lazy" id="card_{{ res.id }}" style="height:50%;width:50%; margin-bottom: 1em;">
+                                        <div class="col-2 " id="loading-image" style="margin:0px auto;"><img src="/search/static/images/loading.gif"></img>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                      
+					  </div>
+                          </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+
+          </div>
+        </div>
+
+        <!-- Filters for the Searched Results -->
+        <div class="col-md-3">
+
+          <div id="filter_div">
+            <div class="row filter-heading-row">
+              <div class="col">
+                <h5 class="filter-heading">Filters</h5>
+              </div>
+              <div class="col my-auto" style="padding-right: 15px;">
+                <a href="javascript:void(0)"
+                   onclick='clearFilterParameters()'>
+                  <button class="btn-sm clear-btn float-right">
+                   CLEAR ALL
+                  </button>
+                </a>
+              </div>
+            </div>
+
+            {# <hr class="hr-sidebar">
+
+            <div class="row filter-subheading-row">
+              <div class="col">
+                <h6 class="filter-subheading">Educational Category &mdash;</h6>
+              </div>
+              <div class="col" style="padding-right: 15px;">
+                <a href="javascript:void(0)"
+                   onclick='removeURLParameter("genre_param")'>
+                  <button class="btn-sm clear-btn float-right">
+                    CLEAR
+                  </button>
+                </a>
+              </div>
+            </div>
+
+            <ul class="filter-list" id="filter_genre_div">
+              {% for genre,count in zipped %}
+              <li class="filter-item" id="filter_by_genre_{{ genre }}">
+                <a href="javascript:void(0)"
+                   onclick='updateQueryStringParameter("genre_param", "{{ genre }}" )'>
+                  <div class="row align-items-center" style="padding-right: 10px;">
+                    <div class="col-9">
+                      {{ genre }}
+                    </div>
+                  <div class="col-3 text-right" style="padding-right: 20px;">
+                      <div class="count-box">
+                      {{ count }}
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              </li>
+              {% endfor %}
+            </ul> #}
+
+
+            <hr class="hr-sidebar">
+
+            <div class="row filter-subheading-row">
+              <div class="col">
+                <h6 class="filter-subheading">Source &mdash;</h6>
+              </div>
+              <div class="col" style="padding-right: 15px;">
+                <a href="javascript:void(0)"
+                   onclick='removeURLParameter("source_param")'>
+                  <button class="btn-sm clear-btn float-right">
+                    CLEAR
+                  </button>
+                </a>
+              </div>
+            </div>
+
+
+            <ul class="filter-list" id="filter_source_div">
+              {% for source,count in zipped_list %}
+              <li class="filter-item" id="filter_by_source_{{ source }}">
+                <a href="javascript:void(0)"
+                   onclick='updateQueryStringParameter("source_param", "{{ source }}" )'>
+                  <div class="row align-items-center" style="padding-right: 10px;">
+                    <div class="col-9">
+                      {{ source }}
+                    </div>
+                    <div class="col-3 text-right" style="padding-right: 20px;">
+                      <div class="count-box">
+                      {{ count }}
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              </li>
+              {% endfor %}
+            </ul>
+
+            {# <hr class="hr-sidebar">
+
+            <div class="row filter-subheading-row">
+              <div class="col">
+                <h6 class="filter-subheading">Language &mdash;</h6>
+              </div>
+              <div class="col" style="padding-right: 15px;">
+                <a href="javascript:void(0)"
+                   onclick='removeURLParameter("source_lang")'>
+                  <button class="btn-sm clear-btn float-right">
+                    CLEAR
+                  </button>
+                </a>
+              </div>
+            </div>
+
+
+            <ul class="filter-list" id="filter_lang_div">
+              {% for lang,count in zipped_list_lang %}
+              <li class="filter-item" id="filter_by_lang_{{ lang }}">
+                <a href="javascript:void(0)"
+                   onclick='updateQueryStringParameter("source_lang", "{{ lang }}" )'>
+                  <div class="row align-items-center" style="padding-right: 10px;">
+                    <div class="col-9">
+                      {{ lang }}
+                    </div>
+                    <div class="col-3 text-right" style="padding-right: 20px;">
+                      <div class="count-box">
+                      {{ count }}
+                      </div>
+                    </div>
+                  </div>
+                </a>
+              </li>
+            {% endfor %}
+            </ul> #}
+
+
+          </div>
+
+        </div>
+
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</main>
+
+{% endblock %}
+
+
+
+{% block foot %}
+
+
+<script>
+$(document).ready(function() {
+  // filter by genre
+  genre_param = get('genre_param');
+  if (genre_param !== undefined) {
+    filter_genre_id = '#filter_by_genre_' + genre_param;
+    $('#filter_genre_div li').removeClass('filter-active');
+    $(filter_genre_id).addClass('filter-active');
+  };
+
+  // filter by source
+  source_param = get('source_param');
+  if (source_param !== undefined) {
+    filter_source_id = '#filter_by_source_' + source_param;
+    $('#filter_source_div li').removeClass('filter-active');
+    $(filter_source_id).addClass('filter-active');
+  };
+
+ // filter by language
+  source_lang = get('source_lang');
+  if (source_lang !== undefined) {
+    filter_lang_id = '#filter_by_source_' + source_lang;
+    $('#filter_lang_div li').removeClass('filter-active');
+    $(filter_source_id).addClass('filter-active');
+  };
+
+
+});
+
+
+
+function get(name) {
+   if(name=(new RegExp('[?&]'+encodeURIComponent(name)+'=([^&]*)')).exec(location.search))
+      return decodeURIComponent(name[1]);
+};
+// Credits: https://stackoverflow.com/a/6021027/3187043
+function updateQueryStringParameter(key, value) {
+  var url = window.location.href
+  // remove page number
+  // prefer to use l.search if you have a location/link object
+  var urlparts= url.split('?');
+  var new_url;
+  if (urlparts.length>=2) {
+      var pg_prefix= encodeURIComponent('page')+'=';
+      var pars= urlparts[1].split(/[&;]/g);
+      //reverse iteration as may be destructive
+      for (var i= pars.length; i-- > 0;) {
+          //idiom for string.startsWith
+          if (pars[i].lastIndexOf(pg_prefix, 0) !== -1 ) {
+              pars.splice(i, 1);
+          }
+      }
+      new_url = urlparts[0] + (pars.length > 0 ? '?' + pars.join('&') : '');
+      console.log(new_url);
+  }
+  else {
+      new_url = url;
+  }
+  var re = new RegExp("([?&])" + key + "=.*?(&|$)", "i");
+  var separator = new_url.indexOf('?') !== -1 ? "&" : "?";
+  if (new_url.match(re)) {
+    window.location = new_url.replace(re, '$1' + key + "=" + value + '$2');
+  }
+  else {
+    window.location = new_url + separator + key + "=" + value;
+  }
+};
+// Credits: https://stackoverflow.com/a/1634841/3187043
+function removeURLParameter(parameter) {
+    var url = window.location.href
+    var is_param_present = false;
+    // prefer to use l.search if you have a location/link object
+    var urlparts= url.split('?');
+    if (urlparts.length>=2) {
+        var prefix= encodeURIComponent(parameter)+'=';
+        var pg_prefix= encodeURIComponent('page')+'=';
+		var pars= urlparts[1].split(/[&;]/g);
+        //reverse iteration as may be destructive
+        for (var i= pars.length; i-- > 0;) {
+            //idiom for string.startsWith
+            if (pars[i].lastIndexOf(prefix, 0) !== -1 ) {
+                is_param_present = true;
+                pars.splice(i, 1);
+            }
+        }
+        if (is_param_present === true) {
+          for (var i= pars.length; i-- > 0;) {
+              //idiom for string.startsWith
+              if (pars[i].lastIndexOf(pg_prefix, 0) !== -1 ) {
+                  pars.splice(i, 1);
+              }
+          }
+        }
+        window.location = urlparts[0] + (pars.length > 0 ? '?' + pars.join('&') : '');
+        return;
+    }
+    return;
+};
+function clearFilterParameters() {
+    var url = window.location.href
+    var is_any_filter_param_present = false;
+    // prefer to use l.search if you have a location/link object
+    var urlparts= url.split('?');
+    if (urlparts.length>=2) {
+        var genre_prefix= encodeURIComponent('genre_param')+'=';
+        var source_prefix= encodeURIComponent('source_param')+'=';
+		var lang_prefix= encodeURIComponent('source_lang')+'=';
+        var pars= urlparts[1].split(/[&;]/g);
+        //reverse iteration as may be destructive
+        for (var i= pars.length; i-- > 0;) {
+            //idiom for string.startsWith
+            if (pars[i].lastIndexOf(genre_prefix, 0) !== -1 ||
+                pars[i].lastIndexOf(source_prefix, 0) !== -1 ||   
+				pars[i].lastIndexOf(lang_prefix, 0) !== -1) {
+                is_any_filter_param_present = true;
+                pars.splice(i, 1);
+            }
+        }
+        if (is_any_filter_param_present) {
+          for (var i= pars.length; i-- > 0;) {
+              //idiom for string.startsWith
+              if (pars[i].lastIndexOf(pg_prefix, 0) !== -1) {
+                  pars.splice(i, 1);
+              }
+          }
+        }
+        window.location = urlparts[0] + (pars.length > 0 ? '?' + pars.join('&') : '');
+        return;
+    }
+    return;
+};
+
+
+</script>
+{% endblock %}
